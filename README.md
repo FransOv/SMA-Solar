@@ -11,6 +11,6 @@ This repository contains the Berry programs that form the bridge to the SMA inve
 
 mbtcp.be => The ModBus/TCP functions
 
-smamb.be => Reading the inverter data via ModBus/TCP
+smamb.be => Reading the inverter data via ModBus/TCP (and also providing the Go-e wallbox wiith information about grid, solar panels and battery)
 
 meter.be => Broadcasting the readings from the utility meter via Speedwire  (UDP-Multicast
