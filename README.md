@@ -6,7 +6,7 @@ The grid elelctricity meter from the utility company has a P1 port that outputs 
 I use Optolink-Splitter (https://github.com/philippoo66/optolink-splitter/) on a Pi to read the relevant data from the Viesssmann heatpump and to control the heatpump from Home Assistant, also MQTT based. 
 This repository contains the Berry programs that form the bridge to the SMA inverter. Read only now as the solar panels don't really need any control, but to be expanded with some cotrolling funcions as soon as the battery is installed.
 
-mbtcp.be => The ModBus tcp functions
+mbtcp.be => The ModBus/TCP functions
 
 smamb.be => Reading the inverter data via ModBus/TCP
 
