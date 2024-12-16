@@ -195,7 +195,7 @@ def every_second()
   dg.set(12,dl,-2)
   #print(dg.size(),dl,dg[0..63].tohex()+"||"+dg[dg.size()-64..dg.size()-1].tohex())
   self.udpSocket.send_multicast(dg)
-  while global.udpSocket.read() != nil end # prevent unread messages from blocking communication
+  while self.udpSocket.read() != nil end # prevent unread messages from blocking communication
  end
 
  self.hue=global.pwr>0 ? 120 : 0
