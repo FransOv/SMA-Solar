@@ -9,6 +9,7 @@ static var dischargereg=40799   # Discharge limit: 40799 or 44437
 # register 40151 / 44427 to enable 802 or disable 803 charge/discharge control via ModBus
 # register 40149 / 44425 charge (-) or discharge (+) power 
 #
+
 #ModBus constants
 static var readInputRegs=4
 static var readHoldingRegs=3
@@ -63,9 +64,9 @@ def init()
   ["ac_current_l3", 30981, 2, 0.001, "A",0],
   ["battery_status", 31391, 2, 1, "x",0],
   ["battery_state", 30955, 2, 1, "x",0],
-  ["battery_charge", 31397, 2, 1, "Wh",0],
+  ["battery_charge", 31397, 4, 1, "Wh",0],
   ["battery_charging", 31393, 2, 1, "W",0],
-  ["battery-discharging", 31395, 2, 1, "W",0]
+  ["battery_discharging", 31395, 2, 1, "W",0]
  ]
   self.maps={
   "inverter_status":{0:"None",35: "Fault",303: "Off",307: "OK",455:" Warning "},
@@ -150,10 +151,15 @@ def callback(result,response)
  #print("Result: ",result,"Response: ",response)
  if result && !self.command
   try
-   if response==bytes("80000000")[0..size(response)-1] || response==bytes("FFFFFFFF")[0..size(response)-1]
-    response=bytes("00000000")[0..size(response)-1]
+   if response==bytes("8000000000000000")[0..size(response)-1] || response==bytes("FFFFFFFFFFFFFFFF")[0..size(response)-1]
+    response=bytes("0000000000000000")[0..size(response)-1]
    end
-   var value=response.geti(0,-2*self.pollItems[self.dp][2])
+   var value
+   if size(response)==8
+    value=real(int64().frombytes(response.reverse()).tostring())
+   else
+    value=response.geti(0,-2*self.pollItems[self.dp][2])
+   end
    if value !=0
     value*=self.pollItems[self.dp][3]
    end
