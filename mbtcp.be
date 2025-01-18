@@ -25,6 +25,9 @@ def connect(mbs,id)
  if self.mb["status"]==0 || self.mb["status"]==9
   self.mb["status"]=1
   self.id=id
+  if self.tcp!=nil
+   self.tcp.close()
+  end
   return self.tcp.connect(mbs,502)
  end
 end #connect
@@ -69,6 +72,7 @@ end #close
 
 def every_250ms()
  if !self.tcp.connected() && self.mb["status"] > 2
+  self.tcp.close()
   self.tcp.connect(self.mb["mbs"],502)
   return
  end
