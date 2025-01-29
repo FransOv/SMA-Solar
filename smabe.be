@@ -39,36 +39,36 @@ var discharge
 def init()
  import mqtt
  self.pollItems=[
-  ["inverter_status", 32385, 2, 1, "x",""],
-  ["operating_status", 40029, 2, 1, "x",""],
-  ["ac_daily_yield", 30535, 2, 1, "Wh",0],
-  ["ac_total_yield", 30513, 4, 1, "Wh",0],
-  ["dc_current_a", 30769, 2, 0.001, "A",0],
-  ["dc_voltage_a", 30771, 2, 0.01, "V",0],
-  ["dc_power_a", 30773, 2, 1, "W",0],
-  ["dc_current_b", 30957, 2, 0.001, "A",0],
-  ["dc_voltage_b", 30959, 2, 0.01, "V",0],
-  ["dc_power_b", 30961, 2, 1, "W",0],
-  ["ac_power", 30775, 2, 1, "W",0],
-  ["ac_power_l1", 30777, 2, 1, "W",0],
-  ["ac_power_l2", 30779, 2, 1, "W",0],
-  ["ac_power_l3", 30781, 2, 1, "W",0],
-  ["ac_voltage_l1", 30783, 2, 0.01, "V",0],
-  ["ac_voltage_l2", 30785, 2, 0.01, "V",0],
-  ["ac_voltage_l3", 30787, 2, 0.01, "V",0],
-  ["ac_current", 30795, 2, 0.001, "A",0],
-  ["ac_current_l1", 30977, 2, 0.001, "A",0],
-  ["ac_current_l2", 30979, 2, 0.001, "A",0],
-  ["ac_current_l3", 30981, 2, 0.001, "A",0],
-  ["battery_status", 31391, 2, 1, "x",0],
-  ["battery_state", 30955, 2, 1, "x",0],
-  ["battery_state_of_charge", 30845, 2, 1, "%",0],
-  ["battery_application_state", 31057, 2, 1, "x",0],
-  ["battery_charge", 31397, 4, 1, "Wh",0],
-  ["battery_discharge", 31401, 4, 1, "Wh",0],
-  ["battery_charging", 31393, 2, 1, "W",0],
-  ["battery_discharging", 31395, 2, 1, "W",0],
-  ["battery_current", 30843, 2, 0.001, "A",0]
+  ["inverter_status", 32385, 2, 1, "x","",0],
+  ["operating_status", 40029, 2, 1, "x","",0],
+  ["ac_daily_yield", 30535, 2, 1, "Wh",0,0],
+  ["ac_total_yield", 30513, 4, 1, "Wh",0,1],
+  ["dc_current_a", 30769, 2, 0.001, "A",0,0],
+  ["dc_voltage_a", 30771, 2, 0.01, "V",0,0],
+  ["dc_power_a", 30773, 2, 1, "W",0,0],
+  ["dc_current_b", 30957, 2, 0.001, "A",0,0],
+  ["dc_voltage_b", 30959, 2, 0.01, "V",0,0],
+  ["dc_power_b", 30961, 2, 1, "W",0,0],
+  ["ac_power", 30775, 2, 1, "W",0,0],
+  ["ac_power_l1", 30777, 2, 1, "W",0,0],
+  ["ac_power_l2", 30779, 2, 1, "W",0,0],
+  ["ac_power_l3", 30781, 2, 1, "W",0,0],
+  ["ac_voltage_l1", 30783, 2, 0.01, "V",0,0],
+  ["ac_voltage_l2", 30785, 2, 0.01, "V",0,0],
+  ["ac_voltage_l3", 30787, 2, 0.01, "V",0,0],
+  ["ac_current", 30795, 2, 0.001, "A",0,0],
+  ["ac_current_l1", 30977, 2, 0.001, "A",0,0],
+  ["ac_current_l2", 30979, 2, 0.001, "A",0,0],
+  ["ac_current_l3", 30981, 2, 0.001, "A",0,0],
+  ["battery_status", 31391, 2, 1, "x",0,0],
+  ["battery_state", 30955, 2, 1, "x",0,0],
+  ["battery_state_of_charge", 30845, 2, 1, "%",0,0],
+  ["battery_application_state", 31057, 2, 1, "x",0,0],
+  ["battery_charge", 31397, 4, 1, "Wh",0,1],
+  ["battery_discharge", 31401, 4, 1, "Wh",0,1],
+  ["battery_charging", 31393, 2, 1, "W",0,0],
+  ["battery_discharging", 31395, 2, 1, "W",0,0],
+  ["battery_current", 30843, 2, 0.001, "A",0,0]
  ]
   self.maps={
   "inverter_status":{0:"None",35: "Fault",303: "Off",307: "OK",455:" Warning "},
@@ -153,14 +153,19 @@ def callback(result,response)
  import mqtt
  import string
  import math
- if result && !self.command
-  try
+ try
+  if result && !self.command
    if response==bytes("8000000000000000")[0..size(response)-1] || response==bytes("FFFFFFFFFFFFFFFF")[0..size(response)-1]
     response=bytes("0000000000000000")[0..size(response)-1]
    end
    var value=self.bytes2real(response)
    if value !=0
     value*=self.pollItems[self.dp][3]
+   end
+   if self.pollItems[self.dp][6]==1 && value<self.pollItems[self.dp][5]
+    value=self.pollItems[self.dp][5]
+   else
+    self.pollItems[self.dp][5]=value
    end
    var mvalue=nil
    if self.pollItems[self.dp][4]=="x"
@@ -172,7 +177,6 @@ def callback(result,response)
     value=string.format("%.3f",value)
    end
    #print("MQTT:",self.baseTopic+self.pollItems[self.dp][0],value)
-   self.pollItems[self.dp][5]=value
    if self.pollItems[self.dp][0]=="dc_power_a" self.pva=int(value) 
    elif self.pollItems[self.dp][0]=="dc_power_b" self.pvb=int(value) 
    elif self.pollItems[self.dp][0]=="battery_state_of_charge" self.batteryCharge=int(value) 
@@ -180,17 +184,18 @@ def callback(result,response)
    elif self.pollItems[self.dp][0]=="battery_discharging" self.batteryPower=-int(value)
    end
    mqtt.publish(self.baseTopic+self.pollItems[self.dp][0],value)
-  except .. as e
-   print("Berry error:", e)
+  elif result && self.command
+   mqtt.publish(self.baseTopic+"response",f"{self.commands[0][0]},{self.commands[0][1]},{self.commands[0][2]},{self.commands[0][3]}: {response} - {self.bytes2real(response)}")
+  elif !result
+   print("ModBus error:",self.modBusError[response[0]])
   end
- elif result && self.command
-  mqtt.publish(self.baseTopic+"response",f"{self.commands[0][0]},{self.commands[0][1]},{self.commands[0][2]},{self.commands[0][3]}: {response} - {self.bytes2real(response)}")
-  self.commands.pop(0)
- elif !result
-  print("ModBus error:",self.modBusError[response[0]])
-  if self.command self.commands.pop(0) end
+ except .. as e
+  print("Berry error:", e)
  end
- self.command=false
+ if self.command 
+  self.commands.pop(0)
+  self.command=false
+ end
  self.requestOutstanding=false
 end #callback
 
