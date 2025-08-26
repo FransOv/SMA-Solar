@@ -7,7 +7,7 @@ The grid electricity meter from the utility company has a P1 port that outputs t
 
 I use Optolink-Splitter (https://github.com/philippoo66/optolink-splitter/) on a Pi to read the relevant data from the Viesssmann heatpump and to control the heatpump from Home Assistant, also MQTT based. For the Go-e wallbox I use their own mqtt based integration. No need to install, the wallbox sends its discovery messages when you enable Home Assistant in the Go-e app.
 
-This repository contains the Berry programs that form the bridge to the SMA inverter. It reads the sensors of the inverter and passes the commands to control charging and discharging os the battery. Most of the time charging and discharging is left on automatic. I recently switched to the Home Assistant SMA integration (https://www.home-assistant.io/integrations/sma/) as I could not get all info via ModBus and also because The inverter doesn't semms to like frequent (1 to 2 seconds interval) queries via ModBus.
+This repository contains the Berry programs that form the bridge to the SMA inverter. It reads the sensors of the inverter and passes the commands to control charging and discharging os the battery. Most of the time charging and discharging is left on automatic. I recently switched to the Home Assistant SMA integration (https://www.home-assistant.io/integrations/sma/) for reading the sensors as I could not get all info via ModBus and also because The inverter doesn't semms to like frequent (1 to 2 seconds interval) queries via ModBus. I still use ModBus to send commands to the inverter.
 
 mbtcp.be => The ModBus/TCP functions
 
