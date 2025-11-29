@@ -13,4 +13,4 @@ mbtcp.be => The ModBus/TCP functions
 
 smamb.be => Reading the inverter data via ModBus/TCP (and also providing the Go-e wallbox with information about grid, solar panels and battery)
 
-meter.be => Broadcasting the readings from the utility meter via Speedwire  (UDP-Multicast)
+meter.be => Broadcasting the readings from the utility meter via Speedwire  (UDP-Multicast) This version is no longer valid as I moved the emaeter emulation to the P1 Reader.
