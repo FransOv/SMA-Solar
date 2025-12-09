@@ -12,7 +12,8 @@ var tcp
 
 def init()
  self.mb=map()  #elements: status, mbs, cb, function, address, length, data
- self.mb.insert("status",0) #0:closed, 1:connecting 2:listening, 3:request qeued 4:request outstanding, 9:timeout
+ self.mb.insert("status",2) #0:closed, 1:connecting 2:listening, 3:request qeued 4:request outstanding, 9:timeout
+ self.mb.insert("mbs","192.168.2.128")
  self.tcp=tcpclientasync()
  self.id=1
 end #init
@@ -28,20 +29,21 @@ def connect(mbs,id)
   if self.tcp!=nil
    self.tcp.close()
   end
+  self.mb["mbs"]=mbs
   return self.tcp.connect(mbs,502)
  end
 end #connect
 
 def request(mbfunction, address, length, cb, data)
- if self.mb["status"]!=2
-  cb(false,bytes("00"))
- else
+ if self.mb["status"]==1 || self.mb["status"]==2
   self.mb["function"]=int(mbfunction)
   self.mb["address"]=int(address)
   self.mb["length"]=int(length)
   self.mb["data"]=data
   self.mb["cb"]=cb
   self.mb["status"]=3
+ else
+  cb(false,bytes("FF"))
  end
 end #request
 
@@ -50,12 +52,13 @@ def resetrequest()
   self.mb.remove("function")
   self.mb.remove("address")
   self.mb.remove("length")
+  self.mb.remove("data")
   tasmota.remove_timer("TimeOut")
 end
 
 def close()
  if self.mb["status"] != 0 
-  self.mb.remove("mbs")
+#  self.mb.remove("mbs")
   if self.mb["status"] > 1
    self.resetrequest()
   end
@@ -63,7 +66,6 @@ def close()
   if self.tcp.connected()
    self.tcp.close()
   end
-
   return true
  else
   return false
@@ -73,9 +75,10 @@ end #close
 def every_250ms()
  if !self.tcp.connected() && self.mb["status"] > 2
   self.tcp.close()
-  self.tcp.connect(self.mb["mbs"],502)
+  print("Connect: ",self.tcp.connect(self.mb["mbs"],502))
   return
  end
+
  if self.mb["status"]==1
   if self.tcp.listening()
    self.mb["mbs"]=self.tcp.info()["remote_addr"]
@@ -93,7 +96,8 @@ def every_250ms()
    mbdata.add(size(self.mb["data"]), 1)
    mbdata+=self.mb["data"]
   end
-  if cb !=nil
+   print(self.mb,mbdata)
+ if cb !=nil
    tasmota.set_timer(5000,/->self.timeout(),"TimeOut")
   end
   self.tcp.write(mbdata) 
@@ -113,6 +117,7 @@ def every_250ms()
    end
    var cb=self.mb.find("cb")
    self.resetrequest()
+   self.tcp.close()
    self.mb["status"]=2
    if cb!=nil
     cb(result, mbdata)
@@ -124,8 +129,9 @@ def every_250ms()
   var callback=self.mb.find("cb")
   self.resetrequest()
   self.mb["status"]=2
+  self.tcp.close()
   if callback!=nil
-   callback(false,bytes("0F"))
+   callback(false,bytes("09"))
   end
  end
 
@@ -133,5 +139,6 @@ end #every_250ms
 
 end #MbTcp
 
+tasmota.remove_driver(global.mbtcp)
 global.mbtcp=MbTcp()
 tasmota.add_driver(global.mbtcp)
