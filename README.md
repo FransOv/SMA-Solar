@@ -13,4 +13,6 @@ mbtcp.be => The ModBus/TCP functions
 
 smamb.be => Sending commands to and reading the response from the inverter via ModBus/TCP. Polling for the inverter data is no longer used. The inverter does not work well with frequent access via ModBus/TCP. 
 
+battctl.be => Implements scheduled charging oof the battery during low tariff hours. 
+
 meter.be => Broadcasting the readings from the utility meter via Speedwire  (UDP-Multicast) This version is no longer valid as I moved the emeter emulation to the P1 Reader.
