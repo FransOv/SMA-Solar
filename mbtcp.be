@@ -75,7 +75,7 @@ end #close
 def every_250ms()
  if !self.tcp.connected() && self.mb["status"] > 2
   self.tcp.close()
-  print("Connect: ",self.tcp.connect(self.mb["mbs"],502))
+  self.tcp.connect(self.mb["mbs"],502)
   return
  end
 
@@ -96,7 +96,7 @@ def every_250ms()
    mbdata.add(size(self.mb["data"]), 1)
    mbdata+=self.mb["data"]
   end
-   print(self.mb,mbdata)
+#  print(self.mb,mbdata)
  if cb !=nil
    tasmota.set_timer(5000,/->self.timeout(),"TimeOut")
   end
@@ -117,7 +117,7 @@ def every_250ms()
    end
    var cb=self.mb.find("cb")
    self.resetrequest()
-   self.tcp.close()
+#   self.tcp.close()
    self.mb["status"]=2
    if cb!=nil
     cb(result, mbdata)
