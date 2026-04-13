@@ -1,12 +1,13 @@
 class eMeter
+
 var values # map of lists Key: P1-Code, Value: [OBIS Code, Data Prefix, Multiplier, Value]
 var udpSocket
 var emHeader 
 var emId
 var serial
-var dataValid
-var bri
-var hue
+var watchdog
+
+var twosec
 
 def init()
  import mqtt
@@ -15,7 +16,7 @@ def init()
 
  self.emHeader=bytes().fromstring("SMA")+bytes("000004")+bytes("02A000000001")+bytes("FFFF00106069") # Data length @ 12(2)
  self.emId=bytes("015D")+self.serial+bytes("00000000") # Millis @ 6 (4)
- self.dataValid=false
+
  self.values=
   [
   ["pwr_imp","1.1.4",bytes("00010400"),10000.0,0],
@@ -82,88 +83,12 @@ def init()
   ["fact_l3","1.73.4",bytes("00490400"),1000.0,bytes("000003E8")]
   ]
  global.pwr=0
+ mqtt.publish ("emeter/active","no")
  self.udpSocket=udp()
  self.udpSocket.begin_multicast("239.12.255.254",9522)
- mqtt.unsubscribe("tele/tasmota-esmr/DSMR5")
- mqtt.subscribe("tele/tasmota-esmr/DSMR5", /t,idx,ps,pb -> self.smr(t,idx,ps,pb))
+ self.twosec=true
+ self.watchdog=60
 end # init
-
-
-def smr(topic,idx,payload_s,payload_b)
- import json
- var smv=json.load(payload_s)
- for val : self.values
-  var v=smv.find(val[0])
-  if v != nil
-   val[4]=self.num2bytes(v*val[3],val[2][2])
-  else
-   if val[0] == "enrg_imp"
-    v=smv["enrg_imp_t1"]+smv["enrg_imp_t2"]
-   elif val[0] == "enrg_exp"
-    v=smv["enrg_exp_t1"]+smv["enrg_exp_t2"]
-   elif val[0] == "pwr_imp_a"
-    v=smv["pwr_imp"]
-   elif val[0] == "enrg_imp_a"
-    v=smv["enrg_imp_t1"]+smv["enrg_imp_t2"]
-   elif val[0] == "pwr_exp_a"
-    v=smv["pwr_exp"]
-   elif val[0] == "enrg_exp_a"
-    v=smv["enrg_exp_t1"]+smv["enrg_exp_t2"]
-
-   elif val[0] == "l1_enrg_imp"
-    v=(smv["enrg_imp_t1"]+smv["enrg_imp_t2"])/3
-   elif val[0] == "l1_enrg_exp"
-    v=(smv["enrg_exp_t1"]+smv["enrg_exp_t2"])/3
-   elif val[0] == "l1_pwr_imp_a"
-    v=smv["l1_pwr_imp"]
-   elif val[0] == "l1_enrg_imp_a"
-    v=(smv["enrg_imp_t1"]+smv["enrg_imp_t2"])/3
-   elif val[0] == "l1_pwr_exp_a"
-    v=smv["l1_pwr_exp"]
-   elif val[0] == "l1_enrg_exp_a"
-    v=(smv["enrg_exp_t1"]+smv["enrg_exp_t2"])/3
-   elif val[0] == "amp_l1"
-    v=(smv["l1_pwr_imp"]+smv["l1_pwr_exp"])*1000.0/smv["volts_l1"]
-
-
-   elif val[0] == "l2_enrg_imp"
-    v=(smv["enrg_imp_t1"]+smv["enrg_imp_t2"])/3
-   elif val[0] == "l2_enrg_exp"
-    v=(smv["enrg_exp_t1"]+smv["enrg_exp_t2"])/3
-   elif val[0] == "l2_pwr_imp_a"
-    v=smv["l2_pwr_imp"]
-   elif val[0] == "l2_enrg_imp_a"
-    v=(smv["enrg_imp_t1"]+smv["enrg_imp_t2"])/3
-   elif val[0] == "l2_pwr_exp_a"
-    v=smv["l2_pwr_exp"]
-   elif val[0] == "l2_enrg_exp_a"
-    v=(smv["enrg_exp_t1"]+smv["enrg_exp_t2"])/3
-   elif val[0] == "amp_l2"
-    v=(smv["l2_pwr_imp"]+smv["l2_pwr_exp"])*1000.0/smv["volts_l2"]
-
-   elif val[0] == "l3_enrg_imp"
-    v=(smv["enrg_imp_t1"]+smv["enrg_imp_t2"])/3
-   elif val[0] == "l3_enrg_exp"
-    v=(smv["enrg_exp_t1"]+smv["enrg_exp_t2"])/3
-   elif val[0] == "l3_pwr_imp_a"
-    v=smv["l3_pwr_imp"]
-   elif val[0] == "l3_enrg_imp_a"
-    v=(smv["enrg_imp_t1"]+smv["enrg_imp_t2"])/3
-   elif val[0] == "l3_pwr_exp_a"
-    v=smv["l3_pwr_exp"]
-   elif val[0] == "l3_enrg_exp_a"
-    v=(smv["enrg_exp_t1"]+smv["enrg_exp_t2"])/3
-   elif val[0] == "amp_l3"
-    v=(smv["l3_pwr_imp"]+smv["l3_pwr_exp"])*1000.0/smv["volts_l3"]
-   end
-   if v != nil
-    val[4]=self.num2bytes(v*val[3],val[2][2])
-   end
-  end
- end
- global.pwr=smv["pwr_exp"]-smv["pwr_imp"]
- self.dataValid=true
-end # smr
 
 def num2bytes(value,length) # only positive numbers length 1, 2, 4 or 8
  var b=bytes()
@@ -182,7 +107,83 @@ def num2bytes(value,length) # only positive numbers length 1, 2, 4 or 8
 end # num2bytes
 
 def every_second()
- if self.dataValid
+import mqtt 
+if global.dataValid
+
+
+ for val : self.values
+  var v=dsmr.mqttmap.find(val[0])
+  if v != nil
+   val[4]=self.num2bytes(v*val[3],val[2][2])
+  else
+   if val[0] == "enrg_imp"
+    v=dsmr.mqttmap["enrg_imp_t1"]+dsmr.mqttmap["enrg_imp_t2"]
+   elif val[0] == "enrg_exp"
+    v=dsmr.mqttmap["enrg_exp_t1"]+dsmr.mqttmap["enrg_exp_t2"]
+   elif val[0] == "pwr_imp_a"
+    v=dsmr.mqttmap["pwr_imp"]
+   elif val[0] == "enrg_imp_a"
+    v=dsmr.mqttmap["enrg_imp_t1"]+dsmr.mqttmap["enrg_imp_t2"]
+   elif val[0] == "pwr_exp_a"
+    v=dsmr.mqttmap["pwr_exp"]
+   elif val[0] == "enrg_exp_a"
+    v=dsmr.mqttmap["enrg_exp_t1"]+dsmr.mqttmap["enrg_exp_t2"]
+
+   elif val[0] == "l1_enrg_imp"
+    v=(dsmr.mqttmap["enrg_imp_t1"]+dsmr.mqttmap["enrg_imp_t2"])/3
+   elif val[0] == "l1_enrg_exp"
+    v=(dsmr.mqttmap["enrg_exp_t1"]+dsmr.mqttmap["enrg_exp_t2"])/3
+   elif val[0] == "l1_pwr_imp_a"
+    v=dsmr.mqttmap["l1_pwr_imp"]
+   elif val[0] == "l1_enrg_imp_a"
+    v=(dsmr.mqttmap["enrg_imp_t1"]+dsmr.mqttmap["enrg_imp_t2"])/3
+   elif val[0] == "l1_pwr_exp_a"
+    v=dsmr.mqttmap["l1_pwr_exp"]
+   elif val[0] == "l1_enrg_exp_a"
+    v=(dsmr.mqttmap["enrg_exp_t1"]+dsmr.mqttmap["enrg_exp_t2"])/3
+   elif val[0] == "amp_l1"
+    v=(dsmr.mqttmap["l1_pwr_imp"]+dsmr.mqttmap["l1_pwr_exp"])*1000.0/dsmr.mqttmap["volts_l1"]
+
+
+   elif val[0] == "l2_enrg_imp"
+    v=(dsmr.mqttmap["enrg_imp_t1"]+dsmr.mqttmap["enrg_imp_t2"])/3
+   elif val[0] == "l2_enrg_exp"
+    v=(dsmr.mqttmap["enrg_exp_t1"]+dsmr.mqttmap["enrg_exp_t2"])/3
+   elif val[0] == "l2_pwr_imp_a"
+    v=dsmr.mqttmap["l2_pwr_imp"]
+   elif val[0] == "l2_enrg_imp_a"
+    v=(dsmr.mqttmap["enrg_imp_t1"]+dsmr.mqttmap["enrg_imp_t2"])/3
+   elif val[0] == "l2_pwr_exp_a"
+    v=dsmr.mqttmap["l2_pwr_exp"]
+   elif val[0] == "l2_enrg_exp_a"
+    v=(dsmr.mqttmap["enrg_exp_t1"]+dsmr.mqttmap["enrg_exp_t2"])/3
+   elif val[0] == "amp_l2"
+    v=(dsmr.mqttmap["l2_pwr_imp"]+dsmr.mqttmap["l2_pwr_exp"])*1000.0/dsmr.mqttmap["volts_l2"]
+
+   elif val[0] == "l3_enrg_imp"
+    v=(dsmr.mqttmap["enrg_imp_t1"]+dsmr.mqttmap["enrg_imp_t2"])/3
+   elif val[0] == "l3_enrg_exp"
+    v=(dsmr.mqttmap["enrg_exp_t1"]+dsmr.mqttmap["enrg_exp_t2"])/3
+   elif val[0] == "l3_pwr_imp_a"
+    v=dsmr.mqttmap["l3_pwr_imp"]
+   elif val[0] == "l3_enrg_imp_a"
+    v=(dsmr.mqttmap["enrg_imp_t1"]+dsmr.mqttmap["enrg_imp_t2"])/3
+   elif val[0] == "l3_pwr_exp_a"
+    v=dsmr.mqttmap["l3_pwr_exp"]
+   elif val[0] == "l3_enrg_exp_a"
+    v=(dsmr.mqttmap["enrg_exp_t1"]+dsmr.mqttmap["enrg_exp_t2"])/3
+   elif val[0] == "amp_l3"
+    v=(dsmr.mqttmap["l3_pwr_imp"]+dsmr.mqttmap["l3_pwr_exp"])*1000.0/dsmr.mqttmap["volts_l3"]
+   end
+   if v != nil
+    val[4]=self.num2bytes(v*val[3],val[2][2])
+   end
+  end
+ end
+ global.pwr=dsmr.mqttmap["pwr_exp"]-dsmr.mqttmap["pwr_imp"]
+
+ #self.twosec=!self.twosec
+ if self.twosec 
   self.emId.set(6,int(tasmota.rtc("local")*1000),-4)
   var dg=self.emHeader+self.emId
   var dl=12
@@ -195,13 +196,23 @@ def every_second()
   dg.set(12,dl,-2)
   #print(dg.size(),dl,dg[0..63].tohex()+"||"+dg[dg.size()-64..dg.size()-1].tohex())
   self.udpSocket.send_multicast(dg)
-  while self.udpSocket.read() != nil end # prevent unread messages from blocking communication
+  while self.udpSocket.read() != nil end
  end
+ if self.watchdog==60
+  self.watchdog=0
+  mqtt.publish ("emeter/active","yes")
+ else
+  self.watchdog+=1
+ end
+end
 
- self.hue=global.pwr>0 ? 120 : 0
- self.bri=global.pwr>0 ? int(global.pwr*255/10) : -int(global.pwr*255/20)
- light.set({"bri":self.bri,"hue":self.hue,"sat":255})
 end # every_second
+
+def web_sensor()
+ import string
+ var pwrshow=string.format("{s}Power eMeter:{m}%.3f{e}",global.pwr)
+ tasmota.web_send(pwrshow)
+end #web_sensor
 
 end #eMeter
 
